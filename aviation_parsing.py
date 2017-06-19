@@ -1,10 +1,5 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
-"""
-Created on Mon May 29 11:29:25 2017
-
-@author: BennyBluebird
-"""
 
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -13,7 +8,7 @@ import pandas as pd
 import requests
 import json
 
-datadir = "."
+datadir = "aviation_data"
 
 def _extract_data(airline, airport):
     
@@ -99,7 +94,7 @@ def extract_data_to_json(airline, airport, international=False):
                 row_dict['flights']['international'] = np.nan
         data.append(row_dict)
 
-    with open('{}-{}.json'.format(airline, airport), 'w') as outfile:
+    with open(datadir + '/{}-{}.json'.format(airline, airport), 'w') as outfile:
         json.dump(data, outfile, indent=4, sort_keys=True)
 
 
@@ -134,6 +129,6 @@ def extract_data_to_csv(airline, airport, international=False):
     
     df = pd.DataFrame(prep_dict, index=indexes)
     
-    with open('{}-{}.csv'.format(airline, airport), 'w') as outfile:
+    with open(datadir + '/{}-{}.csv'.format(airline, airport), 'w') as outfile:
         df.to_csv(outfile, index_label='Date')
     
