@@ -12,7 +12,7 @@ import requests
 
 datadir = "."
 
-def extract_data():
+def extract_data(airline, airport):
     
     session_data = {"event_validation": "",
             "view_state": "",
@@ -31,18 +31,13 @@ def extract_data():
     vsg = soup.find(id="__VIEWSTATEGENERATOR")
     session_data["view_state_generator"] = vsg["value"]
     
-    return session, session_data
-
-    
-def make_request_to_html(session, data, airline, airport, type='flights'):
-    
-    event_validation = data["event_validation"]
-    view_state = data["view_state"]
-    view_state_generator = data["view_state_generator"]
+    event_validation = session_data["event_validation"]
+    view_state = session_data["view_state"]
+    view_state_generator = session_data["view_state_generator"]
     
     r = session.post("https://www.transtats.bts.gov/Data_Elements.aspx?Data=2",
                       data = (
-                              ("__EVENTTARGET", "Link_" + type.capitalize()),
+                              ("__EVENTTARGET", ""),
                               ("__EVENTARGUMENT", ""),
                               ("__VIEWSTATE", view_state),
                               ("__EVENTVALIDATION", event_validation),
