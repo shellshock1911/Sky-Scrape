@@ -14,27 +14,27 @@ datadir = "."
 
 def extract_data():
     
-    sess_data = {"event_validation": "",
+    session_data = {"event_validation": "",
             "view_state": "",
             "view_state_generator": ""}
     
-    sess = requests.Session()
-    r = sess.get("https://www.transtats.bts.gov/Data_Elements.aspx?%2fData=2")
+    session = requests.Session()
+    r = session.get("https://www.transtats.bts.gov/Data_Elements.aspx?%2fData=2")
     
     soup = BeautifulSoup(r.text)
     ev = soup.find(id="__EVENTVALIDATION")
-    sess_data["event_validation"] = ev["value"]
+    session_data["event_validation"] = ev["value"]
         
     vs = soup.find(id="__VIEWSTATE")
-    sess_data["view_state"] = vs["value"]
+    session_data["view_state"] = vs["value"]
         
     vsg = soup.find(id="__VIEWSTATEGENERATOR")
-    sess_data["view_state_generator"] = vsg["value"]
+    session_data["view_state_generator"] = vsg["value"]
     
-    return sess, sess_data
+    return session, session_data
 
     
-def make_request_to_html(session, data, airline, airport, type='passengers'):
+def make_request_to_html(session, data, airline, airport, type='flights'):
     
     event_validation = data["event_validation"]
     view_state = data["view_state"]
