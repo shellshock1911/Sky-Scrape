@@ -21,7 +21,7 @@ def extract_data(airline, airport):
     session = requests.Session()
     r = session.get("https://www.transtats.bts.gov/Data_Elements.aspx?%2fData=2")
     
-    soup = BeautifulSoup(r.text)
+    soup = BeautifulSoup(r.text, 'lxml')
     ev = soup.find(id="__EVENTVALIDATION")
     session_data["event_validation"] = ev["value"]
         
@@ -50,21 +50,22 @@ def extract_data(airline, airport):
     return r.text
 
 
-def process_html_to_json(f, international=False):
+def extract_data_to_json(airline, airport, international=False):
+    
+    request_data = extract_data(airline, airport)
     
     data = []
     info = {}
-    info["courier"], info["airport"] = f[:6].split("-")
+    info["courier"], info["airport"] = airline, airport
     rows = []
     
-    with open("{}/{}".format(datadir, f), "r") as html:
-        soup = BeautifulSoup(html, 'lxml')
-        datagrid = soup.find(id='DataGrid1')
-        for tr in datagrid.find_all('tr'):
-            columns = []
-            for td in tr.find_all('td'):
-                columns.append(td.text)
-            rows.append(columns)
+    soup = BeautifulSoup(request_data, 'lxml')
+    datagrid = soup.find(id='DataGrid1')
+    for tr in datagrid.find_all('tr'):
+        columns = []
+        for td in tr.find_all('td'):
+            columns.append(td.text)
+        rows.append(columns)
     
     for row in rows[1:]:
         if row[1] != 'TOTAL':
