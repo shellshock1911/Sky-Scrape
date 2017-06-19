@@ -9,6 +9,7 @@ Created on Mon May 29 11:29:25 2017
 from bs4 import BeautifulSoup
 import pandas as pd
 import requests
+import json
 
 datadir = "."
 
@@ -85,7 +86,8 @@ def extract_data_to_json(airline, airport, international=False):
                     row_dict['flights']['international'] = 'NaN'
             data.append(row_dict)
 
-    return data
+    with open('{}-{}.json'.format(airline, airport), 'w') as outfile:
+        json.dump(data, outfile, indent=4, sort_keys=True)
 
 
 def process_html_to_csv(f):
