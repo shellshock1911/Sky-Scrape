@@ -7,13 +7,15 @@ Created on Mon May 29 11:29:25 2017
 """
 
 from bs4 import BeautifulSoup
+from datetime import datetime
+import numpy as np
 import pandas as pd
 import requests
 import json
 
 datadir = "."
 
-def extract_data(airline, airport):
+def _extract_data(airline, airport):
     
     session_data = {"event_validation": "",
             "view_state": "",
@@ -51,13 +53,8 @@ def extract_data(airline, airport):
     return r.text
 
 
-def extract_data_to_json(airline, airport, international=False):
+def _parse_request(request_data):
     
-    request_data = extract_data(airline, airport)
-    
-    data = []
-    info = {}
-    info["courier"], info["airport"] = airline, airport
     rows = []
     
     soup = BeautifulSoup(request_data, 'lxml')
@@ -68,31 +65,75 @@ def extract_data_to_json(airline, airport, international=False):
             columns.append(td.text)
         rows.append(columns)
     
+    return rows
+
+
+def extract_data_to_json(airline, airport, international=False):
+    
+    request_data = _extract_data(airline, airport)
+    
+    data = []
+    info = {}
+    info["courier"], info["airport"] = airline, airport
+    
+    rows = _parse_request(request_data)
+    rows = rows[1:]
+    
     for row in rows[1:]:
-        if row[1] != 'TOTAL':
-            row_dict = {'flights':{}}
-            row_dict['airport'] = info['airport']
-            row_dict['courier'] = info['courier']
-            row_dict['year'] = int(row[0])
-            row_dict['month'] = int(row[1])
+        year, month, domestic, international, _ = row
+        if month == 'TOTAL':
+            continue
+        row_dict = {'flights':{}}
+        row_dict['airport'] = info['airport']
+        row_dict['courier'] = info['courier']
+        row_dict['year'] = int(year)
+        row_dict['month'] = int(month)
+        try:
+            row_dict['flights']['domestic'] = int(domestic.replace(',', ''))
+        except ValueError:
+            row_dict['flights']['domestic'] = np.nan
+        if international:
             try:
-                row_dict['flights']['domestic'] = int(row[2].replace(',', ''))
+                row_dict['flights']['international'] = int(international.replace(',', ''))
             except ValueError:
-                row_dict['flights']['domestic'] = 'NaN'
-            if international:
-                try:
-                    row_dict['flights']['international'] = int(row[3].replace(',', ''))
-                except ValueError:
-                    row_dict['flights']['international'] = 'NaN'
-            data.append(row_dict)
+                row_dict['flights']['international'] = np.nan
+        data.append(row_dict)
 
     with open('{}-{}.json'.format(airline, airport), 'w') as outfile:
         json.dump(data, outfile, indent=4, sort_keys=True)
 
 
-def process_html_to_csv(f):
+def extract_data_to_csv(airline, airport, international=False):
     
-    pass
-
-
+    request_data = _extract_data(airline, airport)
+    indexes = []
+    if international:
+        prep_dict = {'Domestic': list(), 'International': list()}
+    else:
+        prep_dict = {'Domestic': list()}
+    
+    rows = _parse_request(request_data)
+    rows = rows[1:]
         
+    for row in rows[1:]:
+        year, month, domestic, international, _ = row
+        if month == 'TOTAL':
+            continue
+        timestring = '{}-{}'.format(year, month)
+        index = datetime.strptime(timestring, '%Y-%m')
+        indexes.append(index)
+        try:
+            prep_dict['Domestic'].append(int(domestic.replace(',', '')))
+        except ValueError:
+            prep_dict['Domestic'].append(np.nan)
+        if international:
+            try:
+                prep_dict['International'].append(int(international.replace(',', '')))
+            except ValueError:
+                prep_dict['International'].append(np.nan)
+    
+    df = pd.DataFrame(prep_dict, index=indexes)
+    
+    with open('{}-{}.csv'.format(airline, airport), 'w') as outfile:
+        df.to_csv(outfile, index_label='Date')
+    
