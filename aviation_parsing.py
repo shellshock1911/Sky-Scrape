@@ -11,7 +11,7 @@ import requests
 
 datadir = "aviation_data"
 
-def _extract_html(airline, airport):
+def _extract_html(airline, airport, additional_requests):
     
     session = requests.Session()
     get_request = session.get("https://www.transtats.bts.gov/Data_Elements.aspx?%2fData=2")
@@ -24,9 +24,11 @@ def _extract_html(airline, airport):
     event_validation = ev["value"]
     view_state = vs["value"]
     view_state_generator = vsg["value"]
+    
+    requests_html = []
         
-    post_request = session.post("https://www.transtats.bts.gov/Data_Elements.aspx?Data=2",
-                      data = (
+    passengers_request = session.post("https://www.transtats.bts.gov/Data_Elements.aspx?Data=2",
+                         data = (
                               ("__EVENTTARGET", ""),
                               ("__EVENTARGUMENT", ""),
                               ("__VIEWSTATE", view_state),
@@ -37,9 +39,24 @@ def _extract_html(airline, airport):
                               ("Submit", "Submit")
                               ))
     
-    html_request = post_request.text
+    requests_html.append(passengers_request.text)
     
-    return html_request
+    if additional_requests:
+        for request in additional_requests:
+            request = session.post("https://www.transtats.bts.gov/Data_Elements.aspx?Data=2",
+                      data = (
+                              ("__EVENTTARGET", "Link_{}".format(request)),
+                              ("__EVENTARGUMENT", ""),
+                              ("__VIEWSTATE", view_state),
+                              ("__EVENTVALIDATION", event_validation),
+                              ("__VIEWSTATEGENERATOR", view_state_generator),
+                              ("CarrierList", airline),
+                              ("AirportList", airport),
+                              ))
+        
+            requests_html.append(request.text)
+    
+    return requests_html
 
 
 def _parse_html_request(html_request):
