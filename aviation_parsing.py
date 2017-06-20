@@ -3,10 +3,11 @@
 
 from bs4 import BeautifulSoup
 from datetime import datetime
+import json
 import numpy as np
 import pandas as pd
+import pickle
 import requests
-import json
 
 datadir = "aviation_data"
 
@@ -62,8 +63,28 @@ def _parse_request(request_data):
     
     return rows
 
+def get_airlines():
+    
+    with open('pkl_objects/airlines.pkl', 'rb') as pkl:
+        airlines = pickle.load(pkl)
+        
+    return airlines
 
-def extract_data_to_json(airline, airport, international=False):
+def get_airports():
+    
+    with open('pkl_objects/airports.pkl', 'rb') as pkl:
+        airports = pickle.load(pkl)
+        
+    return airports
+        
+def get_combinations():
+    
+    with open('pkl_objects/combinations.pkl', 'rb') as pkl:
+        combinations = pickle.load(pkl)
+        
+    return combinations
+    
+def extract_data_to_json(airline, airport, international=False, create_file=False):
     
     request_data = _extract_data(airline, airport)
     
@@ -74,7 +95,7 @@ def extract_data_to_json(airline, airport, international=False):
     rows = _parse_request(request_data)
     rows = rows[1:]
     
-    for row in rows[1:]:
+    for row in rows:
         year, month, domestic, international, _ = row
         if month == 'TOTAL':
             continue
@@ -94,11 +115,14 @@ def extract_data_to_json(airline, airport, international=False):
                 row_dict['flights']['international'] = np.nan
         data.append(row_dict)
 
-    with open(datadir + '/{}-{}.json'.format(airline, airport), 'w') as outfile:
-        json.dump(data, outfile, indent=4, sort_keys=True)
+    if create_file:
+        with open(datadir + '/{}-{}.json'.format(airline, airport), 'w') as outfile:
+            json.dump(data, outfile, indent=4, sort_keys=True)
+            
+    return data
 
 
-def extract_data_to_csv(airline, airport, international=False):
+def extract_data_to_csv(airline, airport, international=False, create_file=False):
     
     request_data = _extract_data(airline, airport)
     indexes = []
@@ -110,7 +134,7 @@ def extract_data_to_csv(airline, airport, international=False):
     rows = _parse_request(request_data)
     rows = rows[1:]
         
-    for row in rows[1:]:
+    for row in rows:
         year, month, domestic, international, _ = row
         if month == 'TOTAL':
             continue
@@ -129,6 +153,9 @@ def extract_data_to_csv(airline, airport, international=False):
     
     df = pd.DataFrame(prep_dict, index=indexes)
     
-    with open(datadir + '/{}-{}.csv'.format(airline, airport), 'w') as outfile:
-        df.to_csv(outfile, index_label='Date')
+    if create_file:
+        with open(datadir + '/{}-{}.csv'.format(airline, airport), 'w') as outfile:
+            df.to_csv(outfile, index_label='Date')
+    
+    return df
     
