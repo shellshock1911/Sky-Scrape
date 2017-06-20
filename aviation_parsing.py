@@ -11,30 +11,29 @@ import requests
 
 datadir = "aviation_data"
 
-def _extract_data(airline, airport):
+def _extract_html(airline, airport):
     
     session_data = {"event_validation": "",
             "view_state": "",
             "view_state_generator": ""}
     
     session = requests.Session()
-    r = session.get("https://www.transtats.bts.gov/Data_Elements.aspx?%2fData=2")
+    get_request = session.get("https://www.transtats.bts.gov/Data_Elements.aspx?%2fData=2")
     
-    soup = BeautifulSoup(r.text, 'lxml')
+    soup = BeautifulSoup(get_request.text, 'lxml')
     ev = soup.find(id="__EVENTVALIDATION")
-    session_data["event_validation"] = ev["value"]
-        
     vs = soup.find(id="__VIEWSTATE")
-    session_data["view_state"] = vs["value"]
-        
     vsg = soup.find(id="__VIEWSTATEGENERATOR")
+    
+    session_data["event_validation"] = ev["value"]
+    session_data["view_state"] = vs["value"]
     session_data["view_state_generator"] = vsg["value"]
     
     event_validation = session_data["event_validation"]
     view_state = session_data["view_state"]
     view_state_generator = session_data["view_state_generator"]
     
-    r = session.post("https://www.transtats.bts.gov/Data_Elements.aspx?Data=2",
+    post_request = session.post("https://www.transtats.bts.gov/Data_Elements.aspx?Data=2",
                       data = (
                               ("__EVENTTARGET", ""),
                               ("__EVENTARGUMENT", ""),
@@ -46,14 +45,16 @@ def _extract_data(airline, airport):
                               ("Submit", "Submit")
                               ))
     
-    return r.text
+    html_request = post_request.text
+    
+    return html_request
 
 
-def _parse_request(request_data):
+def _parse_html_request(html_request):
     
     rows = []
     
-    soup = BeautifulSoup(request_data, 'lxml')
+    soup = BeautifulSoup(html_request, 'lxml')
     datagrid = soup.find(id='DataGrid1')
     for tr in datagrid.find_all('tr'):
         columns = []
@@ -86,13 +87,13 @@ def get_combinations():
     
 def extract_data_to_json(airline, airport, international=False, create_file=False):
     
-    request_data = _extract_data(airline, airport)
+    html_request = _extract_html(airline, airport)
     
     data = []
     info = {}
     info["courier"], info["airport"] = airline, airport
     
-    rows = _parse_request(request_data)
+    rows = _parse_html_request(html_request)
     rows = rows[1:]
     
     for row in rows:
@@ -124,14 +125,14 @@ def extract_data_to_json(airline, airport, international=False, create_file=Fals
 
 def extract_data_to_csv(airline, airport, international=False, create_file=False):
     
-    request_data = _extract_data(airline, airport)
+    html_request = _extract_html(airline, airport)
     indexes = []
     if international:
         prep_dict = {'Domestic': list(), 'International': list()}
     else:
         prep_dict = {'Domestic': list()}
     
-    rows = _parse_request(request_data)
+    rows = _parse_html_request(html_request)
     rows = rows[1:]
         
     for row in rows:
