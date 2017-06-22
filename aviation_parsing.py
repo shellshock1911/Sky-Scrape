@@ -196,7 +196,7 @@ def extract_data_to_csv(airline, airport, additional_requests=None, internationa
             parsed_rows = _parse_data(rows, request, international)
             parsed_data.update(parsed_rows)
     
-    df = pd.DataFrame(parsed_data, index=indexes)
+    df = pd.DataFrame(parsed_data, index=indexes, dtype=np.int32)
     
     if create_file:
         if not os.path.isdir(datadir):
