@@ -14,6 +14,12 @@ datadir = "aviation_data"
 
 def _extract_html(airline, airport, additional_requests=None):
     
+    """Helper function that extracts one or more raw html files from the Department 
+    of Transportation source and stores them in a list of strings. Should not 
+    be called directly.
+    
+    """
+    
     session = requests.Session()
     get_request = session.get("https://www.transtats.bts.gov/Data_Elements.aspx?%2fData=2")
     
@@ -58,6 +64,13 @@ def _extract_html(airline, airport, additional_requests=None):
 
 def _parse_html_request(html_request):
     
+    """Helper function that extracts and cleans data from a single raw html file, 
+    returning an array of rows, each containing a year, month, domestic value, 
+    international value, and total value for desired aviation metric. Should 
+    not be called directly.
+    
+    """
+    
     rows = []
     
     soup = BeautifulSoup(html_request, 'lxml')
@@ -78,12 +91,24 @@ def _parse_html_request(html_request):
 
 def get_airlines():
     
+    """Returns a list of all possible airline codes that can be later passed
+    as arguments to extract_data_to_json or extract_data_to_csv. Must be called 
+    from Flight-Forecast top-level directory.
+    
+    """
+    
     with open('pkl_objects/airlines.pkl', 'rb') as pkl:
         airlines = pickle.load(pkl)
         
     return airlines
 
 def get_airports():
+    
+    """Returns a list of all possible airport codes that can be later passed
+    as arguments to extract_data_to_json or extract_data_to_csv. Must be called 
+    from Flight-Forecast top-level directory.
+    
+    """
     
     with open('pkl_objects/airports.pkl', 'rb') as pkl:
         airports = pickle.load(pkl)
@@ -92,12 +117,35 @@ def get_airports():
         
 def get_combinations():
     
+    """Returns a list of all possible airline-airport codes that could be used
+    with a user-defined looping function to create many JSON or CSV files.
+    
+    """
+    
     with open('pkl_objects/combinations.pkl', 'rb') as pkl:
         combinations = pickle.load(pkl)
         
     return combinations
     
 def extract_data_to_json(airline, airport, international=False, create_file=False):
+    
+    """Takes an airline code and an airport code as arguments and creates a JSON 
+    file containing monthly passenger data for all years for which the data exists. 
+    Data is interpreted as the number of passengers that originate from the 
+    desired airport. A list of JSON objects can be assigned to a variable instead 
+    of creating a CSV file by passing create_file=False. Should be run from
+    the Flight-Forecast top-level directory.
+    
+    Optional parameters allow for the addition of international data
+    as well as receiving data on flights, revenue passenger-miles, and available seat-miles. 
+    Pass one or more of "Flights", "RPM", and "ASM" in a list to additional_requests
+    parameter to request this data. 
+    
+    Note that runtime depends on user's connection speed as well as number
+    of requests passed. Because each request must be processed individually, all 
+    else held equal, runtime is O(number of requests).
+    
+    """
     
     html_requests = _extract_html(airline, airport)
     
@@ -136,6 +184,12 @@ def extract_data_to_json(airline, airport, international=False, create_file=Fals
 
 def _parse_indexes(rows):
     
+    """Helper function that extracts datetime strings from aviation data array
+    and transforms into datetime objects to be used in assembling CSV file. 
+    Should not be called directly.
+    
+    """
+    
     indexes = []
     
     for row in rows:
@@ -147,6 +201,12 @@ def _parse_indexes(rows):
     return indexes
 
 def _parse_data(rows, label, international=False):
+    
+    """Helper function that extracts domestic metric data from aviation data
+    array for later use in assembling CSV file. Missing data takes NaN label.
+    Should not be called directly.
+    
+    """
     
     if international:
         prep_dict = {'{}_Domestic'.format(label): list(), '{}_International'.format(label): list()}
@@ -168,18 +228,37 @@ def _parse_data(rows, label, international=False):
     return prep_dict
 
 
-def extract_data_to_csv(airline, airport, additional_requests=None, international=False, create_file=False):
+def extract_data_to_csv(airline, airport, additional_requests=None, international=False, create_file=True):
+    
+    """Takes an airline code and an airport code as arguments and creates a CSV 
+    file containing monthly passenger data for all years for which the data exists. 
+    Data is interpreted as the number of passengers that originate from the 
+    desired airport. A pandas DataFrame can be assigned to a variable instead 
+    of creating a CSV file by passing create_file=False. Should be run from
+    the Flight-Forecast top-level directory. Run get_airlines() or get_airports()
+    for full lists of valid codes.
+    
+    Optional parameters allow for the addition of international data
+    as well as receiving data on flights, revenue passenger-miles, and available seat-miles. 
+    Pass one or more of "Flights", "RPM", and "ASM" in a list to the additional_requests
+    parameter to request this data. 
+    
+    Note that runtime depends on user's connection speed as well as number
+    of requests passed. Because each request must be processed individually, all 
+    else held equal, runtime is O(number of requests).
+    
+    """
     
     airlines = get_airlines()
     if airline not in airlines:
-        raise ValueError(airline + " is an invalid airline code. Run get_airlines() in an interpreter"
-                         "for a full list of valid airline codes.")
+        raise ValueError(airline + " is an invalid airline code. Run get_airlines()" 
+            " in an interpreter for a full list of valid airline codes.")
     
     
     airports = get_airports()
     if airport not in airports:
-        raise ValueError(airport + " is an invalid airport code. Run get_airports() in an interpreter"
-                         "for a full list of valid airport codes.")
+        raise ValueError(airport + " is an invalid airport code. Run get_airports()" 
+            " in an interpreter for a full list of valid airport codes.")
         
     html_requests = _extract_html(airline, airport, additional_requests)
     passenger_rows = _parse_html_request(html_requests[0])
@@ -189,8 +268,9 @@ def extract_data_to_csv(airline, airport, additional_requests=None, internationa
     if additional_requests:
         possible_additional = ["Flights", "RPM", "ASM"]
         if any(item not in possible_additional for item in additional_requests):
-            raise ValueError("additional_requests includes an invalid value. Possible values include:"
-                " 'Flights', 'RPM', 'ASM'. Must be passed as a list.")
+            raise ValueError("additional_requests includes an invalid value." 
+                " Possible values include: 'Flights', 'RPM', 'ASM'." 
+                " Values must be passed in a list.")
         for i, request in enumerate(additional_requests):
             rows = _parse_html_request(html_requests[i + 1])
             parsed_rows = _parse_data(rows, request, international)
