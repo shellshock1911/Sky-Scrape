@@ -14,11 +14,11 @@ datadir = "aviation_data"
 
 def _extract_html(airline, airport, additional_requests=None):
     
-    """Helper function that extracts one or more raw html files from the Department 
-    of Transportation source and stores them in a list of strings. Should not 
-    be called directly.
+    # Helper function that extracts one or more raw html files from the Department 
+    # of Transportation source and stores them in a list of strings. Should not 
+    # be called directly.
     
-    """
+    # Fetches and stores data to be used in later requests
     
     session = requests.Session()
     get_request = session.get("https://www.transtats.bts.gov/Data_Elements.aspx?%2fData=2")
@@ -27,6 +27,10 @@ def _extract_html(airline, airport, additional_requests=None):
     event_validation = soup.find(id="__EVENTVALIDATION")['value']
     view_state = soup.find(id="__VIEWSTATE")['value']
     view_state_generator = soup.find(id="__VIEWSTATEGENERATOR")['value']
+    
+    # Passenger data is requested by default. This and data on all additional
+    # requests is stored in a list. At this point the data is still in raw
+    # html format and not easily readable.
     
     html_requests = []
         
@@ -64,12 +68,11 @@ def _extract_html(airline, airport, additional_requests=None):
 
 def _parse_html_request(html_request):
     
-    """Helper function that extracts and cleans data from a single raw html file, 
-    returning an array of rows, each containing a year, month, domestic value, 
-    international value, and total value for desired aviation metric. Should 
-    not be called directly.
+    # Helper function that extracts and cleans data from a single raw html file, 
+    # returning an array of rows, each containing a year, month, domestic value, 
+    # international value, and total value for desired aviation metric. Should 
+    # not be called directly.
     
-    """
     
     rows = []
     
@@ -81,10 +84,10 @@ def _parse_html_request(html_request):
             columns.append(td.text)
         rows.append(columns)
         
-    rows = rows[1:]
+    rows = rows[1:] # Skips header information
     for row in rows:
-        year, month, domestic, international, _ = row
-        if month == 'TOTAL':
+        year, month, domestic, international, _ = row # Total data is not necessary
+        if month == 'TOTAL': # Skips over rows that serve as annual sums
             rows.remove(row)
     
     return rows
@@ -184,13 +187,14 @@ def extract_data_to_json(airline, airport, international=False, create_file=Fals
 
 def _parse_indexes(rows):
     
-    """Helper function that extracts datetime strings from aviation data array
-    and transforms into datetime objects to be used in assembling CSV file. 
-    Should not be called directly.
-    
-    """
+    # Helper function that extracts datetime strings from aviation data array
+    # and transforms into datetime objects to be used in assembling CSV file. 
+    # Should not be called directly.
     
     indexes = []
+    
+    # Year and month are initially stored in two separate columns.
+    # This reduces the storage to one column that holds datetime objects.
     
     for row in rows:
         year, month, domestic, international, _ = row
@@ -202,16 +206,17 @@ def _parse_indexes(rows):
 
 def _parse_data(rows, label, international=False):
     
-    """Helper function that extracts domestic metric data from aviation data
-    array for later use in assembling CSV file. Missing data takes NaN label.
-    Should not be called directly.
-    
-    """
+    # Helper function that extracts domestic metric data from aviation data
+    # array for later use in assembling CSV file. Missing data takes NaN label.
+    # Should not be called directly.
     
     if international:
         prep_dict = {'{}_Domestic'.format(label): list(), '{}_International'.format(label): list()}
     else:
         prep_dict = {'{}_Domestic'.format(label): list()}
+        
+    # Input values are read in as strings and can include commas to separate place (e.g. 400,231).
+    # Output values are stored as integers and no longer contain commas.
     
     for row in rows:
         _, _, domestic_data, international_data, _ = row
@@ -245,7 +250,7 @@ def extract_data_to_csv(airline, airport, additional_requests=None, internationa
     
     Note that runtime depends on user's connection speed as well as number
     of requests passed. Because each request must be processed individually, all 
-    else held equal, runtime is O(number of requests).
+    else held equal, runtime is O(n_requests).
     
     """
     
@@ -259,11 +264,19 @@ def extract_data_to_csv(airline, airport, additional_requests=None, internationa
     if airport not in airports:
         raise ValueError(airport + " is an invalid airport code. Run get_airports()" 
             " in an interpreter for a full list of valid airport codes.")
-        
+    
+    # This section of the function begins creating the data dictionary used
+    # to build the CSV file. Initially, only passenger data is included.
+    # The keys are metrics and the values are lists of quantities - one for each 
+    # month in the dataset.
+    
     html_requests = _extract_html(airline, airport, additional_requests)
-    passenger_rows = _parse_html_request(html_requests[0])
-    indexes = _parse_indexes(passenger_rows)
-    parsed_data = _parse_data(passenger_rows, 'Passengers', international)
+    passenger_rows = _parse_html_request(html_requests[0]) # Parsing raw passenger html
+    indexes = _parse_indexes(passenger_rows) # One time datetime index creation
+    parsed_data = _parse_data(passenger_rows, 'Passengers', international) 
+    
+    # If the user requests data on additional metrics, the data dictionary
+    # can be updated with these metrics as keys and lists of quantities as values.
     
     if additional_requests:
         possible_additional = ["Flights", "RPM", "ASM"]
@@ -272,11 +285,17 @@ def extract_data_to_csv(airline, airport, additional_requests=None, internationa
                 " Possible values include: 'Flights', 'RPM', 'ASM'." 
                 " Values must be passed in a list.")
         for i, request in enumerate(additional_requests):
-            rows = _parse_html_request(html_requests[i + 1])
+            rows = _parse_html_request(html_requests[i + 1]) # Skips raw passenger html
             parsed_rows = _parse_data(rows, request, international)
             parsed_data.update(parsed_rows)
     
+    # Any NaN fields in the international column cause the data type for all fields
+    # in the column to become float32. This is reverted to int32 below.
+    
     df = pd.DataFrame(parsed_data, index=indexes, dtype=np.int32)
+    
+    # This call will overwrite the existing file if it already exists in
+    # the aviation_data directory.
     
     if create_file:
         if not os.path.isdir(datadir):
@@ -286,4 +305,5 @@ def extract_data_to_csv(airline, airport, additional_requests=None, internationa
         return None
     
     return df
-    
+
+
