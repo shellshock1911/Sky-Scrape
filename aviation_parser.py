@@ -1,17 +1,15 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
-import os
+from bs4 import BeautifulSoup
+from datetime import datetime
 import numpy as np
 import pandas as pd
+import os
 import requests
 import utilities
-from datetime import datetime
-from bs4 import BeautifulSoup
 
-
-
-DATADIR = "aviation_data"
+datadir = "aviation_data"
 
 def _extract_html(airline, airport, additional_requests=None):
     
@@ -36,31 +34,31 @@ def _extract_html(airline, airport, additional_requests=None):
     html_requests = []
         
     passengers_request = session.post("https://www.transtats.bts.gov/Data_Elements.aspx?Data=2",
-                                      data=(
-                                          ("__EVENTTARGET", ""),
-                                          ("__EVENTARGUMENT", ""),
-                                          ("__VIEWSTATE", view_state),
-                                          ("__EVENTVALIDATION", event_validation),
-                                          ("__VIEWSTATEGENERATOR", view_state_generator),
-                                          ("CarrierList", airline),
-                                          ("AirportList", airport),
-                                          ("Submit", "Submit")
-                                          ))
+                         data = (
+                              ("__EVENTTARGET", ""),
+                              ("__EVENTARGUMENT", ""),
+                              ("__VIEWSTATE", view_state),
+                              ("__EVENTVALIDATION", event_validation),
+                              ("__VIEWSTATEGENERATOR", view_state_generator),
+                              ("CarrierList", airline),
+                              ("AirportList", airport),
+                              ("Submit", "Submit")
+                              ))
     
     html_requests.append(passengers_request.text)
     
     if additional_requests:
         for request in additional_requests:
             request = session.post("https://www.transtats.bts.gov/Data_Elements.aspx?Data=2",
-                                   data=(
-                                       ("__EVENTTARGET", "Link_{}".format(request)),
-                                       ("__EVENTARGUMENT", ""),
-                                       ("__VIEWSTATE", view_state),
-                                       ("__EVENTVALIDATION", event_validation),
-                                       ("__VIEWSTATEGENERATOR", view_state_generator),
-                                       ("CarrierList", airline),
-                                       ("AirportList", airport)
-                                       ))
+                      data = (
+                              ("__EVENTTARGET", "Link_{}".format(request)),
+                              ("__EVENTARGUMENT", ""),
+                              ("__VIEWSTATE", view_state),
+                              ("__EVENTVALIDATION", event_validation),
+                              ("__VIEWSTATEGENERATOR", view_state_generator),
+                              ("CarrierList", airline),
+                              ("AirportList", airport),
+                              ))
         
             html_requests.append(request.text)
     
@@ -74,19 +72,20 @@ def _parse_html_request(html_request):
     # international value, and total value for desired aviation metric. Should 
     # not be called directly.
     
+    
     rows = []
     
     soup = BeautifulSoup(html_request, 'lxml')
     datagrid = soup.find(id='DataGrid1')
-    for row in datagrid.find_all('tr'):
+    for tr in datagrid.find_all('tr'):
         columns = []
-        for field in row.find_all('td'):
-            columns.append(field.text)
+        for td in tr.find_all('td'):
+            columns.append(td.text)
         rows.append(columns)
         
     rows = rows[1:] # Skips header information
     for row in rows:
-        _, month, _, _, _ = row # Total data is not necessary
+        year, month, domestic, international, _ = row # Total data is not necessary
         if month == 'TOTAL': # Skips over rows that serve as annual sums
             rows.remove(row)
     
@@ -104,7 +103,7 @@ def _parse_indexes(rows):
     # This reduces the storage to one column that holds datetime objects.
     
     for row in rows:
-        year, month, _, _, _ = row
+        year, month, domestic, international, _ = row
         timestring = '{}-{}'.format(year, month)
         index = datetime.strptime(timestring, '%Y-%m')
         indexes.append(index)
@@ -128,14 +127,12 @@ def _parse_data(rows, label, international=False):
     for row in rows:
         _, _, domestic_data, international_data, _ = row
         try:
-            prep_dict['{}_Domestic'.format(label)].append(
-                int(domestic_data.replace(',', '')))
+            prep_dict['{}_Domestic'.format(label)].append(int(domestic_data.replace(',', '')))
         except ValueError:
             prep_dict['{}_Domestic'.format(label)].append(np.nan)
         if international:
             try:
-                prep_dict['{}_International'.format(label)].append(
-                    int(international_data.replace(',', '')))
+                prep_dict['{}_International'.format(label)].append(int(international_data.replace(',', '')))
             except ValueError:
                 prep_dict['{}_International'.format(label)].append(np.nan)
     
@@ -166,13 +163,13 @@ def extract_data_to_csv(airline, airport, additional_requests=None, internationa
     airlines = utilities.get_airlines()
     if airline not in airlines:
         raise ValueError(airline + " is an invalid airline code. Run get_airlines()" 
-                                   " in an interpreter for a full list of valid airline codes.")
+            " in an interpreter for a full list of valid airline codes.")
     
     
     airports = utilities.get_airports()
     if airport not in airports:
         raise ValueError(airport + " is an invalid airport code. Run get_airports()" 
-                                   " in an interpreter for a full list of valid airport codes.")
+            " in an interpreter for a full list of valid airport codes.")
     
     # This section of the function begins creating the data dictionary used
     # to build the CSV file. Initially, only passenger data is included.
@@ -191,8 +188,8 @@ def extract_data_to_csv(airline, airport, additional_requests=None, internationa
         possible_additional = ["Flights", "RPM", "ASM"]
         if any(item not in possible_additional for item in additional_requests):
             raise ValueError("additional_requests includes an invalid value." 
-                             " Possible values include: 'Flights', 'RPM', 'ASM'." 
-                             " Values must be passed in a list.")
+                " Possible values include: 'Flights', 'RPM', 'ASM'." 
+                " Values must be passed in a list.")
         for i, request in enumerate(additional_requests):
             rows = _parse_html_request(html_requests[i + 1]) # Skips raw passenger html
             parsed_rows = _parse_data(rows, request, international)
@@ -201,16 +198,18 @@ def extract_data_to_csv(airline, airport, additional_requests=None, internationa
     # Any NaN fields in the international column cause the data type for all fields
     # in the column to become float32. This is reverted to int32 below.
     
-    dataframe = pd.DataFrame(parsed_data, index=indexes, dtype=np.int32)
+    df = pd.DataFrame(parsed_data, index=indexes, dtype=np.int32)
     
     # This call will overwrite the file if it already exists in
     # the aviation_data directory.
     
     if create_file:
-        if not os.path.isdir(DATADIR):
-            os.mkdir(DATADIR)
-        with open(DATADIR + '/{}-{}.csv'.format(airline, airport), 'w') as outfile:
-            dataframe.to_csv(outfile, index_label='Date')
+        if not os.path.isdir(datadir):
+            os.mkdir(datadir)
+        with open(datadir + '/{}-{}.csv'.format(airline, airport), 'w') as outfile:
+            df.to_csv(outfile, index_label='Date')
         return None
     
-    return dataframe
+    return df
+
+
