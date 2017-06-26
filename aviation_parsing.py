@@ -3,7 +3,6 @@
 
 from bs4 import BeautifulSoup
 from datetime import datetime
-import json
 import numpy as np
 import pandas as pd
 import os
@@ -91,62 +90,6 @@ def _parse_html_request(html_request):
             rows.remove(row)
     
     return rows
-
-    
-def extract_data_to_json(airline, airport, international=False, create_file=False):
-    
-    """Takes an airline code and an airport code as arguments and creates a JSON 
-    file containing monthly passenger data for all years for which the data exists. 
-    Data is interpreted as the number of passengers that originate from the 
-    desired airport. A list of JSON objects can be assigned to a variable instead 
-    of creating a CSV file by passing create_file=False. Should be run from
-    the Flight-Forecast top-level directory.
-    
-    Optional parameters allow for the addition of international data
-    as well as receiving data on flights, revenue passenger-miles, and available seat-miles. 
-    Pass one or more of "Flights", "RPM", and "ASM" in a list to additional_requests
-    parameter to request this data. 
-    
-    Note that runtime depends on user's connection speed as well as number
-    of requests passed. Because each request must be processed individually, all 
-    else held equal, runtime is O(number of requests).
-    
-    """
-    
-    html_requests = _extract_html(airline, airport)
-    
-    data = []
-    info = {}
-    info["courier"], info["airport"] = airline, airport
-    
-    rows = _parse_html_request(html_requests)
-    
-    for row in rows:
-        year, month, domestic, international, _ = row
-        if month == 'TOTAL':
-            continue
-        row_dict = {'flights':{}}
-        row_dict['airport'] = info['airport']
-        row_dict['courier'] = info['courier']
-        row_dict['year'] = int(year)
-        row_dict['month'] = int(month)
-        try:
-            row_dict['flights']['domestic'] = int(domestic.replace(',', ''))
-        except ValueError:
-            row_dict['flights']['domestic'] = np.nan
-        if international:
-            try:
-                row_dict['flights']['international'] = int(international.replace(',', ''))
-            except ValueError:
-                row_dict['flights']['international'] = np.nan
-        data.append(row_dict)
-
-    if create_file:
-        with open(datadir + '/{}-{}.json'.format(airline, airport), 'w') as outfile:
-            json.dump(data, outfile, indent=4, sort_keys=True)
-            
-    return data
-
 
 def _parse_indexes(rows):
     
