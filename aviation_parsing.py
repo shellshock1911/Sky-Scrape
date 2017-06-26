@@ -92,43 +92,6 @@ def _parse_html_request(html_request):
     
     return rows
 
-def get_airlines():
-    
-    """Returns a list of all possible airline codes that can be later passed
-    as arguments to extract_data_to_json or extract_data_to_csv. Must be called 
-    from Flight-Forecast top-level directory.
-    
-    """
-    
-    with open('pkl_objects/airlines.pkl', 'rb') as pkl:
-        airlines = pickle.load(pkl)
-        
-    return airlines
-
-def get_airports():
-    
-    """Returns a list of all possible airport codes that can be later passed
-    as arguments to extract_data_to_json or extract_data_to_csv. Must be called 
-    from Flight-Forecast top-level directory.
-    
-    """
-    
-    with open('pkl_objects/airports.pkl', 'rb') as pkl:
-        airports = pickle.load(pkl)
-        
-    return airports
-        
-def get_combinations():
-    
-    """Returns a list of all possible airline-airport codes that could be used
-    with a user-defined looping function to create many JSON or CSV files.
-    
-    """
-    
-    with open('pkl_objects/combinations.pkl', 'rb') as pkl:
-        combinations = pickle.load(pkl)
-        
-    return combinations
     
 def extract_data_to_json(airline, airport, international=False, create_file=False):
     
