@@ -6,9 +6,9 @@ from datetime import datetime
 import json
 import numpy as np
 import pandas as pd
-import pickle
 import os
 import requests
+import utilities
 
 datadir = "aviation_data"
 
@@ -211,19 +211,19 @@ def extract_data_to_csv(airline, airport, additional_requests=None, internationa
     Pass one or more of "Flights", "RPM", and "ASM" in a list to the additional_requests
     parameter to request this data. 
     
-    Note that runtime depends on user's connection speed as well as number
+    Note that runtime depends on connection speed as well as number
     of requests passed. Because each request must be processed individually, all 
     else held equal, runtime is O(n_requests).
     
     """
     
-    airlines = get_airlines()
+    airlines = utilities.get_airlines()
     if airline not in airlines:
         raise ValueError(airline + " is an invalid airline code. Run get_airlines()" 
             " in an interpreter for a full list of valid airline codes.")
     
     
-    airports = get_airports()
+    airports = utilities.get_airports()
     if airport not in airports:
         raise ValueError(airport + " is an invalid airport code. Run get_airports()" 
             " in an interpreter for a full list of valid airport codes.")
@@ -257,7 +257,7 @@ def extract_data_to_csv(airline, airport, additional_requests=None, internationa
     
     df = pd.DataFrame(parsed_data, index=indexes, dtype=np.int32)
     
-    # This call will overwrite the existing file if it already exists in
+    # This call will overwrite the file if it already exists in
     # the aviation_data directory.
     
     if create_file:
