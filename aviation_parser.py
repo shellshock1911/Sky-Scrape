@@ -87,11 +87,16 @@ def _parse_html_request(html_request):
     
     soup = BeautifulSoup(html_request, 'lxml')
     datagrid = soup.find(id='DataGrid1')
-    for row in datagrid.find_all('tr'):
-        columns = []
-        for field in row.find_all('td'):
-            columns.append(field.text)
-        rows.append(columns)
+    
+    try:
+        for row in datagrid.find_all('tr'):
+            columns = []
+            for field in row.find_all('td'):
+                columns.append(field.text)
+            rows.append(columns)
+        
+    except AttributeError:
+        raise Exception("No data exists for this query. Please try a different combination.")
         
     rows = rows[1:] # Skips header information
     for row in rows:
@@ -180,12 +185,12 @@ def extract_data_to_csv(airline, airport, international=True,
 
     airlines = get_airlines()
     if airline not in airlines:
-        raise ValueError(airline + " is an invalid airline code. Run get_airlines()" 
+        raise ValueError(airline + " is an invalid airline code. Run get_airlines() from utilities.py" 
                                    " in an interpreter for a full list of valid airline codes.")
 
     airports = get_airports()
     if airport not in airports:
-        raise ValueError(airport + " is an invalid airport code. Run get_airports()" 
+        raise ValueError(airport + " is an invalid airport code. Run get_airports() from utilities.py" 
                                    " in an interpreter for a full list of valid airport codes.")
     
     # This section of the function begins creating the data dictionary used
