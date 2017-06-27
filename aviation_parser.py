@@ -2,24 +2,28 @@
 # -*- coding: utf-8 -*-
 
 import os
+import sys
+import time
 import numpy as np
 import pandas as pd
 import requests
-import utilities
-from datetime import datetime
 from bs4 import BeautifulSoup
+from datetime import datetime
+from utilities import get_airlines, get_airports
 
-
-
+AIRLINE = sys.argv[1]
+AIRPORT = sys.argv[2]
 DATADIR = "aviation_data"
 
 def _extract_html(airline, airport, additional_requests=None):
     
-    # Helper function that extracts one or more raw html files from the Department 
-    # of Transportation source and stores them in a list of strings. Should not 
-    # be called directly.
+    # Step 1
     
-    # Fetches and stores data to be used in later requests
+    # Helper function that extracts one or more raw html files from the Department 
+    # of Transportation source and stores them in a list of strings. 
+    # Should not be called directly.
+    
+    # Fetches and stores session and state data to be used in later requests
     
     session = requests.Session()
     get_request = session.get("https://www.transtats.bts.gov/Data_Elements.aspx?%2fData=2")
@@ -49,6 +53,9 @@ def _extract_html(airline, airport, additional_requests=None):
     
     html_requests.append(passengers_request.text)
     
+    # After the passenger request is made, additional requests can be made
+    # from that point by linking them in __EVENTTARGET below.
+    
     if additional_requests:
         for request in additional_requests:
             request = session.post("https://www.transtats.bts.gov/Data_Elements.aspx?Data=2",
@@ -69,10 +76,12 @@ def _extract_html(airline, airport, additional_requests=None):
 
 def _parse_html_request(html_request):
     
+    # Step 2
+    
     # Helper function that extracts and cleans data from a single raw html file, 
     # returning an array of rows, each containing a year, month, domestic value, 
-    # international value, and total value for desired aviation metric. Should 
-    # not be called directly.
+    # international value, and total value for desired aviation metric. 
+    # Should not be called directly.
     
     rows = []
     
@@ -86,7 +95,7 @@ def _parse_html_request(html_request):
         
     rows = rows[1:] # Skips header information
     for row in rows:
-        _, month, _, _, _ = row # Total data is not necessary
+        _, month, _, _, _ = row
         if month == 'TOTAL': # Skips over rows that serve as annual sums
             rows.remove(row)
     
@@ -95,14 +104,16 @@ def _parse_html_request(html_request):
 
 def _parse_indexes(rows):
     
+    # Step 3
+    
     # Helper function that extracts datetime strings from aviation data array
     # and transforms into datetime objects to be used in assembling CSV file. 
     # Should not be called directly.
     
     indexes = []
     
-    # Year and month are initially stored in two separate columns.
-    # This reduces the storage to one column that holds datetime objects.
+    # Year and month strings are initially stored in separate columns.
+    # This consolidates them into one column that holds datetime objects.
     
     for row in rows:
         year, month, _, _, _ = row
@@ -114,6 +125,8 @@ def _parse_indexes(rows):
 
 
 def _parse_data(rows, label, international=False):
+    
+    # Step 4
     
     # Helper function that extracts domestic metric data from aviation data
     # array for later use in assembling CSV file. Missing data takes NaN label.
@@ -144,34 +157,33 @@ def _parse_data(rows, label, international=False):
     return prep_dict
 
 
-def extract_data_to_csv(airline, airport, additional_requests=None, international=False, create_file=True):
+def extract_data_to_csv(airline, airport, international=True, 
+                        additional_requests=['Flights', 'ASM', 'RPM']):
     
     """Takes an airline code and an airport code as arguments and creates a CSV 
-    file containing monthly passenger data for all years for which the data exists. 
-    Data is interpreted as the number of passengers that originate from the 
-    desired airport. A pandas DataFrame can be assigned to a variable instead 
-    of creating a CSV file by passing create_file=False. Should be run from
-    the Flight-Forecast top-level directory. Run get_airlines() or get_airports()
-    for full lists of valid codes.
+    file on disk containing monthly passenger data for all months for which the data exists. 
+    Data is interpreted as originating from the desired airport. Should be run from 
+    the Flight-Forecast top-level directory. Run get_airlines() or get_airports() 
+    for full lists of valid input codes.
     
     Optional parameters allow for the addition of international data
     as well as receiving data on flights, revenue passenger-miles, and available seat-miles. 
     Pass one or more of "Flights", "RPM", and "ASM" in a list to the additional_requests
-    parameter to request this data. 
+    parameter to request this data. All of these are included by default.
     
     Note that runtime depends on connection speed as well as number
     of requests passed. Because each request must be processed individually, all 
     else held equal, runtime is O(n_requests).
     
     """
-    
-    airlines = utilities.get_airlines()
+    start = time.time()
+
+    airlines = get_airlines()
     if airline not in airlines:
         raise ValueError(airline + " is an invalid airline code. Run get_airlines()" 
                                    " in an interpreter for a full list of valid airline codes.")
-    
-    
-    airports = utilities.get_airports()
+
+    airports = get_airports()
     if airport not in airports:
         raise ValueError(airport + " is an invalid airport code. Run get_airports()" 
                                    " in an interpreter for a full list of valid airport codes.")
@@ -200,21 +212,23 @@ def extract_data_to_csv(airline, airport, additional_requests=None, internationa
             parsed_rows = _parse_data(rows, request, international)
             parsed_data.update(parsed_rows)
     
-    # Any NaN fields in the international column cause the data type for all fields
-    # in the column to become float32. This is reverted to int32 below.
+    # Any NaN fields in the international column causes the data type for all fields
+    # to become float32. This is coerced to int32.
     
     dataframe = pd.DataFrame(parsed_data, index=indexes, dtype=np.int32)
     
-    # This call will overwrite the file if it already exists in
-    # the aviation_data directory.
+    # File will be overwritten if it already exists in the aviation_data directory.
     
-    if create_file:
-        if not os.path.isdir(DATADIR):
-            os.mkdir(DATADIR)
-        with open(DATADIR + '/{}-{}.csv'.format(airline, airport), 'w') as outfile:
-            dataframe.to_csv(outfile, index_label='Date')
-        return None
-    
-    return dataframe
+    if not os.path.isdir(DATADIR):
+        os.mkdir(DATADIR)
+    with open(DATADIR + '/{}-{}.csv'.format(airline, airport), 'w') as outfile:
+        dataframe.to_csv(outfile, index_label='Date')
+        end = time.time()
+        print "Requests completed in", round((end - start), 2), "seconds"
+        print "Data available at: " + os.path.join(os.path.dirname(__file__), outfile.name)
+    return None
+
+if __name__ == '__main__':
+    extract_data_to_csv(AIRLINE, AIRPORT)
 
 
