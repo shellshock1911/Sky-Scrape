@@ -14,6 +14,27 @@ from utilities import get_airlines, get_airports
 AIRLINE = sys.argv[1]
 AIRPORT = sys.argv[2]
 DATADIR = "aviation_data"
+CODEDICT = {
+            'All': 'All',
+            'AS': 'Alaska_Airlines',
+            'G4': 'Allegient_Air',
+            'AA': 'American_Airlines',
+            '5Y': 'Atlas_Air',
+            'DL': 'Delta_Airlines',
+            'MQ': 'Envoy_Air',
+            'EV': 'ExpressJet',
+            'F9': 'Frontier_Airlines',
+            'HA': 'Hawaiian_Airlines',
+            'B6': 'JetBlue_Airways',
+            'OO': 'SkyWest_Airlines',
+            'WN': 'Southwest_Airlines',
+            'NK': 'Spirit_Airlines',
+            'UA': 'United_Airlines',
+            'VX': 'Virgin_America'
+           }
+
+FULL_NAME = CODEDICT[AIRLINE]
+
 
 def _extract_html(airline, airport, additional_requests=None):
     
@@ -224,9 +245,9 @@ def extract_data_to_csv(airline, airport, international=True,
     
     # File will be overwritten if it already exists in the aviation_data directory.
     
-    if not os.path.isdir(DATADIR):
-        os.mkdir(DATADIR)
-    with open(DATADIR + '/{}-{}.csv'.format(airline, airport), 'w') as outfile:
+    if not os.path.isdir(DATADIR + '/{}'.format(FULL_NAME)):
+        os.mkdir(DATADIR + '/{}'.format(FULL_NAME))
+    with open(DATADIR + '/{0}/{1}-{2}.csv'.format(FULL_NAME, airline, airport), 'w') as outfile:
         dataframe.to_csv(outfile, index_label='Date')
         end = time.time()
         print "Requests completed in", round((end - start), 2), "seconds"
