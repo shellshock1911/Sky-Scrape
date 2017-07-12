@@ -14,7 +14,7 @@ def get_airlines():
     
     """
     
-    airlines = ['AS', 'G4', 'AA', '5Y', 'DL', 'MQ', 'EV', 'F9', 'HA', 'B6', 'OO',
+    airlines = ['All', 'AS', 'G4', 'AA', '5Y', 'DL', 'MQ', 'EV', 'F9', 'HA', 'B6', 'OO',
                 'WN', 'NK', 'UA', 'VX']
         
     return airlines
@@ -27,7 +27,7 @@ def get_airports():
     
     """
     
-    airports = ['ATL', 'BWI', 'BOS', 'CLT', 'MDW', 'ORD', 'DAL', 'DFW', 'DEN', 
+    airports = ['All', 'ATL', 'BWI', 'BOS', 'CLT', 'MDW', 'ORD', 'DAL', 'DFW', 'DEN', 
                 'DTW', 'FLL', 'IAH', 'LAS', 'LAX', 'MIA', 'MSP', 'JFK', 'LGA', 
                 'EWR', 'MCO', 'PHL', 'PHX', 'PDX', 'SLC', 'SAN', 'SFO', 'SEA', 
                 'TPA', 'DCA', 'IAD']
